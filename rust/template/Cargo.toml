@@ -21,8 +21,9 @@ libtool = "0.1"
 [dependencies.differential_datalog]
 path = "./differential_datalog"
 
-[dependencies.cmd_parser]
+[target.'cfg(any(windows,unix))'.dependencies.cmd_parser]
 path = "./cmd_parser"
+optional = true
 
 [dependencies.ddlog_ovsdb_adapter]
 path = "./ovsdb"
@@ -32,6 +33,9 @@ path = "./types"
 
 [dependencies.value]
 path = "./value"
+
+[target.wasm32-wasi.dependencies]
+wasi = "*"
 
 [dependencies]
 abomonation = "0.7"

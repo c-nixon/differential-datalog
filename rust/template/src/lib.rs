@@ -1,3 +1,4 @@
+#![cfg_attr(target_arch = "wasm32", feature(wasi_ext))]
 #![allow(
     unused_imports,
     non_snake_case,

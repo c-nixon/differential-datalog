@@ -9,6 +9,10 @@ use std::os::raw;
 use std::os::unix::io::{FromRawFd, IntoRawFd, RawFd};
 #[cfg(windows)]
 use std::os::windows::io::{FromRawHandle, IntoRawHandle, RawHandle};
+#[cfg(target_arch = "wasm32")]
+use std::os::wasi::prelude::{FromRawFd, IntoRawFd};
+#[cfg(target_arch = "wasm32")]
+use wasi::Fd;
 
 use std::ptr;
 use std::slice;
@@ -642,6 +646,43 @@ pub unsafe extern "C" fn ddlog_run(
             ptr::null()
         }
     }
+}
+
+#[no_mangle]
+#[cfg(target_arch="wasm32")]
+pub unsafe extern "C" fn ddlog_record_commands(prog: *const HDDlog, fd: raw::c_long) -> raw::c_int {
+    if prog.is_null() {
+        return -1;
+    };
+    let mut prog = Arc::from_raw(prog);
+
+    let file = if fd == -1 {
+        None
+    } else {
+        let fd = match Fd::try_from(fd){
+            Ok(fd) => fd,
+            Err(_) => {
+                Arc::into_raw(prog);
+                return -1;
+            }
+        };
+        Some(fs::File::from_raw_fd(fd))
+    };
+
+    let res = match Arc::get_mut(&mut prog) {
+        Some(prog) => {
+            let mut old_file = file.map(Mutex::new);
+            prog.record_commands(&mut old_file);
+            /* Convert the old file into FD to prevent it from closing.
+             * It is the caller's responsibility to close the file when
+             * they are done with it. */
+            old_file.map(|m| m.into_inner().unwrap().into_raw_fd());
+            0
+        }
+        None => -1,
+    };
+    Arc::into_raw(prog);
+    res
 }
 
 #[no_mangle]
